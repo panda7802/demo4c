@@ -13,6 +13,7 @@
 
 
 /**
+ * TODO
  * 连接到服务器
  */
 int conn2server(const char* ip,int port,int sockfd,int timeout)
