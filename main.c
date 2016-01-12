@@ -1,9 +1,9 @@
-#include "t_client.h"
+#include "t_socket.h"
 
 /**
  *向服务器发送数据
  */
-void send_to_server(t_sock_data *sc_data,char *buff,int len) {
+void send_to_server(t_sock_data *sc_data) {
 	if(NULL == sc_data) {
 		printf("send2server : sc_data is null");
 		return;
@@ -19,6 +19,34 @@ void send_to_server(t_sock_data *sc_data,char *buff,int len) {
 		if(0 == strcmp(input,"q")) {
 			close(sc_data->sockfd);
 		}
+	}
+}
+
+/**
+ *
+ */
+void conn_status_change(t_sock_data *sc_data) {
+	pthread_t thread_send;
+	
+	if (NULL == sc_data) {
+		return;
+	}
+
+	switch(sc_data->ret) {
+		case TS_ERR_TIMIEOUT:
+			printf("---RECONNECT---\n");
+			break;
+		case TS_ERR_NET:
+			break;
+		case TS_ERR_PARM:
+			break;
+		case TS_CONN://连接成功
+			//发送
+			printf("start send\n");
+			pthread_create(&thread_send,NULL,(void *)send_to_server,(void *)sc_data);
+			break;
+		default:
+			break;
 	}
 }
 
@@ -64,12 +92,13 @@ int main(int argc, char *argv[])
 	sc_data.timeval.tv_sec = 3;
 	sc_data.timeval.tv_usec = 0;
 	
-	//连接
-	conn2server(&sc_data,recv_from_server);
+	//回调
+	t_sock_func sock_func;
+	sock_func.on_recv_data = recv_from_server;
+	sock_func.on_conn_status = conn_status_change;
 
-	//发送
-	pthread_t thread;
-	pthread_create(&thread,NULL,(void *)send_to_server,(void *)&sc_data);
+	//连接
+	conn2server(&sc_data,sock_func);
 
 }
 

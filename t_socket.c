@@ -1,4 +1,4 @@
-#include "t_client.h"
+#include "t_socket.h"
 
 /**
  * 释放资源
@@ -36,7 +36,7 @@ char * hex_2_str(char *hex,int len) {
 /**
  * 连接到服务器
  */
-void conn2server(t_sock_data *sc_data,recv_data_func recv_func)
+void conn2server(t_sock_data *sc_data,t_sock_func sock_func)
 {
 	struct sockaddr_in server_addr;//socket地址
 	int mode;//阻塞类型
@@ -47,7 +47,8 @@ void conn2server(t_sock_data *sc_data,recv_data_func recv_func)
 	char recv_len = 0;
 
 	if(NULL == sc_data) {
-		sc_data->ret = EXIT_FAILURE;
+		printf("sc_data is null\n");
+		sc_data->ret = TS_ERR_PARM;
 		return;
 	}
 
@@ -60,7 +61,7 @@ void conn2server(t_sock_data *sc_data,recv_data_func recv_func)
 	host = gethostbyname((const char *)sc_data->ip);
 	if(NULL == host) {
 		printf("Gethostname error\n");
-		sc_data->ret = EXIT_FAILURE;
+		sc_data->ret = TS_ERR_PARM;
 		return;
 	}
 	
@@ -107,6 +108,7 @@ void conn2server(t_sock_data *sc_data,recv_data_func recv_func)
 			printf("Conn failed %s !!!\n",strerror(errno));
 			goto error;
 		} else if (0 == sc_data->ret) {
+			sc_data->ret = TS_ERR_TIMIEOUT;
 			printf("Conn failed timeout !!!\n");
 			goto error;
 		} else if(FD_ISSET(sc_data->sockfd, &(write_set))) {
@@ -119,6 +121,10 @@ void conn2server(t_sock_data *sc_data,recv_data_func recv_func)
 				}
 				// 连接成功了 
 				printf("Conn success !!!\n");
+				sc_data->ret = TS_CONN;
+				if(NULL != sock_func.on_conn_status) {
+					sock_func.on_conn_status(sc_data);
+				}
 		} else {
 				printf("Conn failed !!!\n");
 				goto error;
@@ -126,9 +132,7 @@ void conn2server(t_sock_data *sc_data,recv_data_func recv_func)
 	} else {
 		// 连接成功了 
 		printf("Conn success soon !!!\n");
-		
 	}
-
 	
 	FD_ZERO(&read_set);
 	FD_SET(sc_data->sockfd, &read_set);
@@ -151,8 +155,8 @@ void conn2server(t_sock_data *sc_data,recv_data_func recv_func)
 					goto error;
 				} else {
 					//调用回调
-					if(NULL != recv_func) {
-						recv_func(sc_data,recv_buff,recv_len);
+					if(NULL != sock_func.on_recv_data) {
+						sock_func.on_recv_data(sc_data,recv_buff,recv_len);
 					}
 				}
 			} else {
@@ -164,10 +168,20 @@ void conn2server(t_sock_data *sc_data,recv_data_func recv_func)
 
 //错误
 error:
-	close(sc_data->sockfd);
 	if(EXIT_SUCCESS == sc_data->ret) {
-		sc_data->ret = EXIT_FAILURE;
+		sc_data->ret = TS_ERR_NET;
+		sc_data->sys_err = errno;
 	}
+	if(NULL != sock_func.on_conn_status) {
+		sock_func.on_conn_status(sc_data);
+	}
+	close(sc_data->sockfd);
+	sc_data->ret = TS_ERR_NET;
+	sc_data->sys_err = errno;
+	if(NULL != sock_func.on_conn_status) {
+		sock_func.on_conn_status(sc_data);
+	}
+
 	return;
 }
 
