@@ -23,14 +23,20 @@
 #define TS_ERR_NET		2
 //参数异常
 #define TS_ERR_PARM		3
-
 //状态
 #define TS_CONN			4
-
 //关闭
 #define TS_CLOSE		5
 
+/**
+ * 释放
+ */
+void t_free(void *data);
 
+/**
+ * 打印hex
+ */
+char *hex_2_str(char *hex,int len);
 
 //连接信息
 typedef struct _sock_data {
@@ -40,38 +46,64 @@ typedef struct _sock_data {
 	int sockfd;//句柄
 	int ret ;//错误类型
 	int sys_err;//系统错误码
-}t_sock_data;
+}t_client_conn;
 
 /**
  * 收到数据的回调
  */
-typedef void (*recv_data_func)(t_sock_data *sc_data,char *buff,int len);
+typedef void (*recv_data_func)(t_client_conn *cli_conn,char *buff,int len);
 
 /**
  * 连接状态的回调
  */
-typedef void (*conn_status_func)(t_sock_data *sc_data);
+typedef void (*conn_status_func)(t_client_conn *cli_conn);
 
 //连接的回调
-typedef struct _sock_func {
+typedef struct _cli_func {
 	recv_data_func on_recv_data;
 	conn_status_func on_conn_status;
-} t_sock_func;
+} t_cli_func;
 
-void t_free(void *data);
-
-char *hex_2_str(char *hex,int len);
 
 /**
  * 向服务器发送数据
  */
-void send2server(t_sock_data *sc_data);
+void send2server(t_client_conn *cli_conn);
 
 /**
  * 连接到服务器
  */
-void conn2server(t_sock_data *sc_data,t_sock_func sock_func);
+void conn2server(t_client_conn *cli_conn,t_cli_func sock_func);
 
+/**
+ * 服务器的信息
+ */
+typedef struct _server_data {
+	int port;
+	struct timeval timeval ;//超时
+	int ret ;//错误类型
+	int sys_err;//系统错误码
+} t_server_conn;
+
+/**
+ * 收到数据的回调
+ */
+typedef void (*srv_recv_data_func)(t_server_conn *srv_conn,int fd,char *buff,int len);
+
+/**
+ * 连接状态的回调
+ */
+typedef void (*srv_conn_status_func)(t_server_conn *srv_conn);
+
+typedef struct _srv_func {
+	srv_recv_data_func recv_data_func;
+	srv_conn_status_func conn_status_func;
+} t_srv_func;
+
+/**
+ * 启动服务器
+ */
+void start_server(t_server_conn *srv_conn,t_srv_func srv_func);
 
 #endif
 
