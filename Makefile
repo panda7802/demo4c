@@ -9,11 +9,11 @@ all:socket main
 #	gcc $^ -o $@ -lpthread
 
 socket:t_socket.c
-	gcc -c $^
+	gcc -Wall -c $^
 	ar -rcs libt_socket.a t_socket.o
 
 main:main.c
-	gcc $^ -o $@ libt_socket.a -lpthread -I.
+	gcc -Wall $^ -o $@ libt_socket.a -lpthread -I.
 
 clean:
 	rm -f *.a *.o main

@@ -15,7 +15,7 @@
 #include <errno.h>
 #include <netdb.h>
 
-#define MAX_BUFF_LEN 1024
+#define MAX_buf_LEN 1024
 
 //超时
 #define TS_ERR_TIMIEOUT	1
@@ -48,62 +48,109 @@ typedef struct _sock_data {
 	int sys_err;//系统错误码
 }t_client_conn;
 
-/**
- * 收到数据的回调
- */
-typedef void (*recv_data_func)(t_client_conn *cli_conn,char *buff,int len);
 
 /**
  * 连接状态的回调
  */
 typedef void (*conn_status_func)(t_client_conn *cli_conn);
 
+//////////////////////////////////////////
+
+/**
+ * 客户端收到数据的回调
+ */
+typedef void (*tcp_recv_data_func)(t_client_conn *cli_conn,char *buf,int len);
+
 //连接的回调
 typedef struct _cli_func {
-	recv_data_func on_recv_data;
+	tcp_recv_data_func on_recv_data;
 	conn_status_func on_conn_status;
 } t_cli_func;
 
-
 /**
- * 向服务器发送数据
+ * 连接到TCP服务器
  */
-void send2server(t_client_conn *cli_conn);
+void start_tcp_client(t_client_conn *cli_conn,t_cli_func sock_func);
 
-/**
- * 连接到服务器
- */
-void conn2server(t_client_conn *cli_conn,t_cli_func sock_func);
 
 /**
  * 服务器的信息
  */
-typedef struct _server_data {
-	int port;
-	struct timeval timeval ;//超时
+typedef struct _server_conn {
+	int port;// 端口
+	struct timeval timeout ;//超时
 	int ret ;//错误类型
 	int sys_err;//系统错误码
+	int fd;//套接字
 } t_server_conn;
 
+
 /**
- * 收到数据的回调
+ * TCP收到数据
  */
-typedef void (*srv_recv_data_func)(t_server_conn *srv_conn,int fd,char *buff,int len);
+typedef struct _tcp_recv_data {
+	int fd;
+	char *buf;
+	int buf_len;
+} t_tcp_recv_data;
+
+/**
+ * TCP收到数据的回调
+ */
+typedef void (*srv_recv_data_func)(t_server_conn *srv_conn,t_tcp_recv_data recv_data);
 
 /**
  * 连接状态的回调
  */
 typedef void (*srv_conn_status_func)(t_server_conn *srv_conn);
 
-typedef struct _srv_func {
+/**
+ * TCP服务器回调
+ */
+typedef struct _tcp_srv_func {
 	srv_recv_data_func recv_data_func;
 	srv_conn_status_func conn_status_func;
-} t_srv_func;
+} t_tcp_srv_func;
 
 /**
- * 启动服务器
+ * 启动TCP服务器
  */
-void start_server(t_server_conn *srv_conn,t_srv_func srv_func);
+void start_tcp_server(t_server_conn *srv_conn,t_tcp_srv_func srv_func);
+
+//////////////////////////////////////////////////
+/**
+ * UDP收到数据
+ */
+typedef struct _udp_recv_data {
+	struct sockaddr_in addr;
+	int addr_len;
+	char *buf;
+	int buf_len;
+} t_udp_recv_data;
+
+/**
+ * UDP收到数据的回调
+ */
+typedef void (*udp_srv_recv_data_func)(t_server_conn *srv_conn,t_udp_recv_data recv_data);
+
+
+/**
+ * UDP服务器回调
+ */
+typedef struct _udp_srv_func {
+	udp_srv_recv_data_func recv_data_func;
+	srv_conn_status_func conn_status_func;
+} t_udp_srv_func;
+
+/**
+ * UDP客户端
+ */
+void start_udp_client(t_client_conn *cli_conn,t_cli_func sock_func);
+
+/**
+ * 启动UDP服务器
+ */
+void start_udp_server(t_server_conn *srv_conn,t_udp_srv_func srv_func);
 
 #endif
 
