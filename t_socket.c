@@ -113,18 +113,18 @@ void start_tcp_client(t_client_conn *cli_conn,t_cli_func sock_func)
 			printf("Conn failed timeout !!!\n");
 			goto error;
 		} else if (FD_ISSET(cli_conn->sockfd, &(write_set))) {
-				//转为阻塞模式
-				mode = 0;
-				cli_conn->ret = ioctl(cli_conn->sockfd, FIONBIO, &mode);
-			    if (EXIT_SUCCESS != cli_conn->ret ) {
-					printf("ioctlsocket failed with error: %d , %s\n", cli_conn->ret , strerror(errno) );
-					goto error;
-				}
-				// 连接成功了 
-				printf("Conn success !!!\n");
-		} else {
-				printf("Conn failed !!!\n");
+			//转为阻塞模式
+			mode = 0;
+			cli_conn->ret = ioctl(cli_conn->sockfd, FIONBIO, &mode);
+			if (EXIT_SUCCESS != cli_conn->ret ) {
+				printf("ioctlsocket failed with error: %d , %s\n", cli_conn->ret , strerror(errno) );
 				goto error;
+			}
+			// 连接成功了 
+			printf("Conn success !!!\n");
+		} else {
+			printf("Conn failed !!!\n");
+			goto error;
 		}		
 	} else {
 		// 连接成功了 
@@ -197,7 +197,8 @@ void start_tcp_server(t_server_conn *srv_conn,t_tcp_srv_func srv_func)
 {
 	struct sockaddr_in server, remote;
 	int request_sock, new_sock;
-	int nfound, fd, maxfd, buf_len;
+	int nfound, fd, buf_len;
+	//int maxfd;
 	socklen_t addrlen;
 	fd_set rmask, mask;
 	struct timeval timeout = srv_conn->timeout;
@@ -237,23 +238,24 @@ void start_tcp_server(t_server_conn *srv_conn,t_tcp_srv_func srv_func)
 
 	FD_ZERO(&mask);
 	FD_SET(request_sock, &mask);
-	maxfd = request_sock;
+	srv_conn->maxfd = request_sock;
 	
-	printf("start listen server  %d\n",port);
+	printf("start listen server  %d,srv sock : %d\n",port,request_sock);
 	
 	// 循环连接
 	for (;;) {
 		rmask = mask;
-		nfound = select(maxfd + 1, &rmask, NULL, NULL, &timeout);
+		nfound = select(srv_conn->maxfd + 1, &rmask, NULL, NULL, &timeout);
+		//nfound = select(FD_SETSIZE, &rmask, NULL, NULL, &timeout);
 		if (nfound < 0) {
 			if (EINTR == errno) {
 				printf("interrupted system call\n");
 				continue;
 			}
 			// 连接出现异常
-			perror("select");
-			goto error;
-		} else if (nfound == 0) {
+			perror("srv select ");
+			//goto error;
+		} else if (0 == nfound) {
 			continue;
 		}
 
@@ -268,13 +270,13 @@ void start_tcp_server(t_server_conn *srv_conn,t_tcp_srv_func srv_func)
 			printf("connection from host %s, port %d, socket %d\n",(char *)inet_ntoa(remote.sin_addr), ntohs(remote.sin_port),new_sock);
 
 			FD_SET(new_sock, &mask);
-			if (new_sock > maxfd) {
-				maxfd = new_sock;
+			if (new_sock > srv_conn->maxfd) {
+				srv_conn->maxfd = new_sock;
 			}
 			FD_CLR(request_sock, &rmask);
 		}
 
-		for (fd=0; fd <= maxfd ; fd++) {
+		for (fd = 0; fd <= srv_conn->maxfd ; fd++) {
 			// 循环查询连接的数据
 			if (FD_ISSET(fd, &rmask)) {
 				buf_len = read(fd, buf, sizeof(buf) - 1);
@@ -282,9 +284,9 @@ void start_tcp_server(t_server_conn *srv_conn,t_tcp_srv_func srv_func)
 					//
 					perror("read");
 					goto error;
-				} else if (buf_len<=0) {
+				} else if (buf_len <= 0) {
 					// 连接断开
-					printf("conn brocken, fd:%d\n",fd);
+					printf("conn broken, fd:%d\n",fd);
 					FD_CLR(fd, &mask);
 					if (close(fd)) {
 						perror("close");
@@ -438,116 +440,6 @@ error:
 }
 
 /**
- * 开启服务器
-/
-void start_tcp_server(t_server_conn *srv_conn,t_tcp_srv_func srv_func)
-{
-	struct sockaddr_in server, remote;
-	int request_sock, new_sock;
-	int nfound, fd, maxfd, buf_len;
-	socklen_t addrlen;
-	fd_set rmask, mask;
-	struct timeval timeout = srv_conn->timeout;
-	char buf[MAX_buf_LEN] = {0};
-	int port = srv_conn->port;
-
-	// 创建连接
-	if ((request_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("socket");
-		srv_conn->ret = TS_ERR_PARM;
-		goto error;
-	}
-	srv_conn->fd = request_sock;
-
-	// 绑定端口
-	memset((void *) &server, 0, sizeof(server));
-	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons(port);
-	if (bind(request_sock, (struct sockaddr *)&server, sizeof server) < 0) {
-		perror("bind");
-		srv_conn->ret = TS_ERR_PARM;
-		goto error;
-	}
-
-	// 监听端口
-	if (listen(request_sock, SOMAXCONN) < 0) {
-		perror("listen");
-		srv_conn->ret = TS_ERR_PARM;
-		goto error;
-	}
-
-	srv_conn->ret = TS_CONN;
-	srv_conn->sys_err = errno;
-	srv_func.conn_status_func(srv_conn);
-
-
-	FD_ZERO(&mask);
-	FD_SET(request_sock, &mask);
-	maxfd = request_sock;
-	
-	printf("start listen server  %d\n",port);
-	
-	// 循环连接
-	for (;;) {
-		rmask = mask;
-		nfound = select(maxfd + 1, &rmask, NULL, NULL, &timeout);
-		if (nfound < 0) {
-			if (EINTR == errno) {
-				printf("interrupted system call\n");
-				continue;
-			}
-			// 连接出现异常
-			perror("select");
-			goto error;
-		} else if (nfound == 0) {
-			continue;
-		}
-
-		if (FD_ISSET(request_sock, &rmask)) {
-			// 新的连接
-			addrlen = sizeof(remote);
-			new_sock = accept(request_sock, (struct sockaddr *)&remote,&addrlen);
-			if (new_sock < 0) {
-				perror("accept");
-				goto error;
-			}
-			printf("connection from host %s, port %d, socket %d\n",(char *)inet_ntoa(remote.sin_addr), ntohs(remote.sin_port),new_sock);
-
-			FD_SET(new_sock, &mask);
-			if (new_sock > maxfd) {
-				maxfd = new_sock;
-			}
-			FD_CLR(request_sock, &rmask);
-		}
-
-		for (fd=0; fd <= maxfd ; fd++) {
-			// 循环查询连接的数据
-			if (FD_ISSET(fd, &rmask)) {
-				buf_len = read(fd, buf, sizeof(buf) - 1);
-				if (buf_len < 0) {
-					//
-					perror("read");
-					goto error;
-				} else if (buf_len<=0) {
-					// 连接断开
-					printf("conn brocken, fd:%d\n",fd);
-					FD_CLR(fd, &mask);
-					if (close(fd)) {
-						perror("close");
-						goto error:
-					}
-				} else {
-					if (NULL !=  srv_func.recv_data_func) {
-						srv_func.recv_data_func(srv_conn,fd,buf,bytesread);
-					}
-				}
-			}
-		}
-}
-*/
-
-/**
  * 连接到UDP服务器
  */
 void start_udp_server(t_server_conn *srv_conn,t_udp_srv_func srv_func)
@@ -588,7 +480,7 @@ void start_udp_server(t_server_conn *srv_conn,t_udp_srv_func srv_func)
 	if (setsockopt(request_sock, SOL_SOCKET, SO_BROADCAST, (char *)&opt, sizeof(opt)) < 0 ) {
 		printf("Can not broadcast\n");
 		goto error;
-	}  
+	}
 
 	// 绑定端口
 	memset((void *) &server, 0, sizeof(server));

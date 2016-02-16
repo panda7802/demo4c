@@ -82,6 +82,7 @@ typedef struct _server_conn {
 	int ret ;//错误类型
 	int sys_err;//系统错误码
 	int fd;//套接字
+	int maxfd;//最大句柄
 } t_server_conn;
 
 

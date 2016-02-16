@@ -24,7 +24,7 @@ void send_to_server(t_client_conn *cli_conn) {
 		scanf("%s",input);
 		if(NET_TYPE_TCP == type) {
 			write(cli_conn->sockfd,input,strlen(input));
-		}else {
+		} else {
 			send(cli_conn->sockfd,input,strlen(input) ,0);
 		}
 		usleep(100);
@@ -49,8 +49,10 @@ void conn_status_change(t_client_conn *cli_conn) {
 			printf("---RECONNECT---\n");
 			break;
 		case TS_ERR_NET:
+			printf("err : TS_ERR_NET\n");
 			break;
 		case TS_ERR_PARM:
+			printf("err : TS_ERR_PARM\n");
 			break;
 		case TS_CONN://连接成功
 			//发送
@@ -125,8 +127,10 @@ void srv_conn_func(t_server_conn *srv_conn) {
 			printf("---RECONNECT---\n");
 			break;
 		case TS_ERR_NET:
+			printf("srv TS_ERR_NET\n");
 			break;
 		case TS_ERR_PARM:
+			printf("srv TS_ERR_PARM\n");
 			break;
 		case TS_CONN://连接成功
 			//发送
@@ -167,6 +171,11 @@ void tcp_recv_data_from_cli(t_server_conn *srv_conn,t_tcp_recv_data tcp_recv_dat
 	printf("recv :fd : %d, %s\n",tcp_recv_data.fd , s);
 	strcpy(s2send,"send");
 	write(tcp_recv_data.fd,s2send,strlen(s2send));
+
+	if ((1 == tcp_recv_data.buf_len) && (tcp_recv_data.buf[0] == 'q')) {
+		printf("I will close %d\n,",tcp_recv_data.fd);
+		close(tcp_recv_data.fd);
+	}
 
 	t_free(s);
 }
