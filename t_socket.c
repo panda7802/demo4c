@@ -45,7 +45,7 @@ void start_tcp_client(t_client_conn *cli_conn,t_cli_func sock_func)
 	struct hostent *host = NULL;
 	char ip_str[32] = {0};
 	char recv_buf[MAX_buf_LEN] = {0};
-	char recv_len = 0;
+	int recv_len = 0;
 
 	if (NULL == cli_conn) {
 		printf("cli_conn is null\n");
@@ -331,7 +331,7 @@ void start_udp_client(t_client_conn *cli_conn,t_cli_func sock_func)
 	struct hostent *host = NULL;
 	char ip_str[32] = {0};
 	char recv_buf[MAX_buf_LEN] = {0};
-	char recv_len = 0;
+	int recv_len = 0;
 	int opt = 1; 
 
 	if (NULL == cli_conn) {
