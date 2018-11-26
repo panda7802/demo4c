@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
 		ip = argv[1];
 		port = atoi(argv[2]);
 		run_client(ip,port);
-	} else if(argc == 3){
+	} else if(argc == 3) {
 		type = argv[2][0];
 		port = atoi(argv[1]);
 		run_server(port);

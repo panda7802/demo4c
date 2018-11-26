@@ -17,3 +17,4 @@ main:main.c
 
 clean:
 	rm -f *.a *.o main
+

@@ -13,6 +13,7 @@ void t_free(void *data){
 
 /**
  * HEX转字符串
+ * 注意，此处内存未释放
  */
 char * hex_2_str(char *hex,int len) {
 	char *res = NULL;
